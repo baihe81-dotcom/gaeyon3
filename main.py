@@ -6,13 +6,21 @@ import random
 # ======================
 if "money" not in st.session_state:
     st.session_state.money = 100
+
 if "level" not in st.session_state:
     st.session_state.level = 0
+
 if "buff_rate" not in st.session_state:
     st.session_state.buff_rate = 0
+
 if "buff_cost" not in st.session_state:
     st.session_state.buff_cost = 30
 
+
+# ======================
+# GAME LOGIC
+# ======================
+MAX_LEVEL = 25
 
 def get_cost():
     return int(15 + st.session_state.level * 12)
@@ -24,8 +32,31 @@ def sell_value():
     l = st.session_state.level
     return l * 30 + l * l * 10
 
+def get_sword_name():
+    l = st.session_state.level
 
+    if l == 0:
+        return "🗡️ 녹슨 개복치 검"
+    elif l < 5:
+        return "🗡️ 운빨 강화 칼"
+    elif l < 10:
+        return "🗡️ 강화 중독자의 검"
+    elif l < 20:
+        return "🗡️ 전설 후보 검"
+    elif l < MAX_LEVEL:
+        return "🗡️ 신화 직전 검"
+    else:
+        return "👑 MAX 신의 검"
+
+
+# ======================
+# ACTIONS
+# ======================
 def upgrade():
+    if st.session_state.level >= MAX_LEVEL:
+        st.error("⚠️ 최대 강화 도달")
+        return
+
     cost = get_cost()
     if st.session_state.money < cost:
         st.error("💸 돈 부족")
@@ -33,19 +64,22 @@ def upgrade():
 
     st.session_state.money -= cost
 
+    # 파괴 확률
     if random.random() < 0.03:
         st.session_state.level = 0
         st.error("💥 파괴!")
-    elif random.random() < get_success_rate():
+        return
+
+    if random.random() < get_success_rate():
         st.session_state.level += 1
-        st.success("✨ 성공!")
+        st.success("✨ 강화 성공!")
     else:
         st.warning("❌ 실패")
 
 
 def sell():
     if st.session_state.level == 0:
-        st.info("검 없음")
+        st.info("🪨 판매할 검 없음")
         return
 
     gain = sell_value()
@@ -56,7 +90,7 @@ def sell():
 
 def buff():
     if st.session_state.money < st.session_state.buff_cost:
-        st.error("💸 부족")
+        st.error("💸 돈 부족")
         return
 
     st.session_state.money -= st.session_state.buff_cost
@@ -67,32 +101,30 @@ def buff():
 
 def risk():
     if st.session_state.money < 80:
-        st.error("💸 부족")
+        st.error("💸 돈 부족")
         return
 
     st.session_state.money -= 80
 
     if random.random() < 0.5:
         gain = 3 + random.randint(0, 3)
-        st.session_state.level += gain
+        st.session_state.level = min(MAX_LEVEL, st.session_state.level + gain)
         st.success(f"🔥 +{gain}")
     else:
         st.session_state.level = 0
-        st.error("💀 파괴")
+        st.error("💀 전부 파괴")
 
 
 def trash():
     st.session_state.money += 1
-    st.toast("+1💰")
+    st.toast("+1 💰")
 
 
 # ======================
-# 🎨 CUSTOM UI STYLE
+# UI STYLE
 # ======================
 st.markdown("""
 <style>
-
-/* 배경 */
 .stApp {
     background: radial-gradient(circle at top, #1b1f3a, #0b0c14);
     color: white;
@@ -103,13 +135,12 @@ st.markdown("""
     padding-top: 2rem;
 }
 
-/* 메트릭 카드 */
+/* metric */
 div[data-testid="stMetric"] {
     background: rgba(255,255,255,0.06);
-    padding: 18px;
-    border-radius: 16px;
+    padding: 16px;
+    border-radius: 14px;
     border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
 
 /* 버튼 */
@@ -129,51 +160,75 @@ div[data-testid="stMetric"] {
     box-shadow: 0 10px 20px rgba(0,0,0,0.3);
 }
 
-/* 텍스트 강조 */
+/* 제목 */
 h1 {
     text-align: center;
     color: #7cf7c1;
-    text-shadow: 0 0 20px rgba(124,247,193,0.4);
 }
-
 </style>
 """, unsafe_allow_html=True)
 
 
 # ======================
-# UI
+# HEADER
 # ======================
-st.title("⚔️ ENHANCE RPG")
+st.title("⚔️ ENHANCE RPG ULTIMATE")
 
+# ======================
+# STATUS
+# ======================
 col1, col2 = st.columns(2)
 
 with col1:
-    st.metric("💰 MONEY", st.session_state.money)
+    st.markdown(f"""
+    <div style="padding:15px;background:rgba(255,215,107,0.1);border-radius:12px">
+    <h3>💰 MONEY</h3>
+    <h2 style="color:#ffd86b">{st.session_state.money}</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col2:
-    st.metric("⚔️ LEVEL", f"+{st.session_state.level}")
+    st.markdown(f"""
+    <div style="padding:15px;background:rgba(124,247,193,0.1);border-radius:12px">
+    <h3>⚔️ LEVEL</h3>
+    <h2 style="color:#7cf7c1">+{st.session_state.level}</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.write("---")
+# ======================
+# SWORD NAME
+# ======================
+st.markdown(f"""
+<div style="
+margin:15px 0;
+padding:15px;
+text-align:center;
+background:rgba(255,255,255,0.05);
+border-radius:12px;
+border:1px solid rgba(255,255,255,0.1);
+">
+<h2>{get_sword_name()}</h2>
+</div>
+""", unsafe_allow_html=True)
 
+# ======================
+# BUTTONS
+# ======================
 colA, colB = st.columns(2)
 
 with colA:
-    if st.button(f"강화 (-{get_cost()}💰)"):
-        upgrade()
-
-    if st.button(f"확률업 (-{st.session_state.buff_cost}💰)"):
-        buff()
+    st.button(f"⚔️ 강화 (-{get_cost()}💰)", on_click=upgrade)
+    st.button(f"📈 확률업 (-{st.session_state.buff_cost}💰)", on_click=buff)
 
 with colB:
-    if st.button(f"판매 (+{sell_value()}💰)"):
-        sell()
-
-    if st.button("위험강화 (-80💰)"):
-        risk()
+    st.button(f"💰 판매 (+{sell_value()}💰)", on_click=sell)
+    st.button("💣 위험강화 (-80💰)", on_click=risk)
 
 st.write("---")
 
-if st.button("🗑️ 쓰레기통 (+1💰)"):
-    trash()
+st.button("🗑️ 쓰레기통 (+1💰)", on_click=trash)
 
-st.caption("⚡ RPG Enhancement System v2")
+# ======================
+# FOOTER
+# ======================
+st.caption("⚡ Full RPG Enhancement System - Streamlit Edition")
